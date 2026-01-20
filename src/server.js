@@ -215,22 +215,21 @@ async function startDownload(jobId, url) {
   const outputTemplate = path.join(DOWNLOADS_DIR, `${jobId}.%(ext)s`);
 
   const maxRetries = 10;
-  let retryCount = 0;
   let lastPort = null;
 
   const attemptDownload = async (proxyUrl) => {
-    const args = [
-      url,
-      "--proxy",
-      proxyUrl,
-      "-o",
-      outputTemplate,
-      "--no-playlist",
-    ];
+    return new Promise((resolve, reject) => {
+      const args = [
+        url,
+        "--proxy",
+        proxyUrl,
+        "-o",
+        outputTemplate,
+        "--no-playlist",
+      ];
 
-    console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
+      console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
 
-    try {
       const eventEmitter = ytDlpWrap.exec(args);
 
       eventEmitter.on("progress", (progress) => {
@@ -243,8 +242,7 @@ async function startDownload(jobId, url) {
 
       eventEmitter.on("error", (error) => {
         console.error(`Job ${jobId} error:`, error);
-        job.status = "error";
-        job.error = error.message;
+        reject(error);
       });
 
       eventEmitter.on("close", async () => {
@@ -262,68 +260,52 @@ async function startDownload(jobId, url) {
             job.status = "uploading";
             console.log(`Starting S3 upload for job ${jobId}...`);
 
-            try {
-              const s3Url = await uploadToS3(localPath, file);
-              job.s3Url = s3Url;
-              job.status = "completed";
-              console.log(`S3 upload completed for job ${jobId}: ${s3Url}`);
+            const s3Url = await uploadToS3(localPath, file);
+            job.s3Url = s3Url;
+            job.status = "completed";
+            console.log(`S3 upload completed for job ${jobId}: ${s3Url}`);
 
-              fs.unlinkSync(localPath);
-              console.log(`Local file deleted for job ${jobId}`);
-            } catch (uploadError) {
-              job.status = "error";
-              job.error = "Upload failed: " + uploadError.message;
-              console.error(`Upload failed for job ${jobId}:`, uploadError);
-            }
+            fs.unlinkSync(localPath);
+            console.log(`Local file deleted for job ${jobId}`);
+            resolve();
           } else {
-            job.status = "error";
-            job.error = "Output file not found after download";
+            throw new Error("Output file not found after download");
           }
         } catch (err) {
           console.error("Error processing output file:", err);
-          job.status = "error";
-          job.error = "Error processing output file";
+          reject(err);
         }
       });
-    } catch (error) {
-      console.error(`Job ${jobId} exception:`, error);
-      job.status = "error";
-      job.error = error.message;
-    }
+    });
   };
 
-  const retryWithDelay = async (retryCount) => {
-    if (retryCount < maxRetries) {
-      const delay = 2000 + retryCount * 5000;
+  let success = false;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = 2000 + (attempt - 1) * 5000;
       console.log(`Retrying job ${jobId} in ${delay / 1000} seconds...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return true;
-    }
-    return false;
-  };
-
-  while (retryCount <= maxRetries) {
-    if (retryCount > 0) {
-      const shouldRetry = await retryWithDelay(retryCount);
-      if (!shouldRetry) {
-        console.log(`Max retries reached for job ${jobId}.`);
-        break;
-      }
     }
 
-    const proxyData = getProxyUrl(lastPort);
-    const proxyUrl = proxyData.url;
-    lastPort = proxyData.port;
+    try {
+      const proxyData = getProxyUrl(lastPort);
+      const proxyUrl = proxyData.url;
+      lastPort = proxyData.port;
 
-    await attemptDownload(proxyUrl);
-
-    if (job.status === "completed") {
+      await attemptDownload(proxyUrl);
+      success = true;
       break;
-    } else if (job.status === "error") {
-      retryCount++;
-    } else {
-      break;
+    } catch (error) {
+      console.error(
+        `Attempt ${attempt + 1} failed for job ${jobId}:`,
+        error.message,
+      );
     }
+  }
+
+  if (!success) {
+    job.status = "error";
+    job.error = "Download failed after all retries";
   }
 }
 
