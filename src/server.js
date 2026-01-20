@@ -38,9 +38,15 @@ const PROXY_PASS = "B5a9dab+Fsc16jPQkn";
 const PROXY_HOST = "isp.decodo.com";
 const PROXY_PORTS = [10001, 10002, 10003];
 
-function getProxyUrl() {
-  const port = PROXY_PORTS[Math.floor(Math.random() * PROXY_PORTS.length)];
-  return `http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${port}`;
+function getProxyUrl(excludePort = null) {
+  let port;
+  do {
+    port = PROXY_PORTS[Math.floor(Math.random() * PROXY_PORTS.length)];
+  } while (port === excludePort);
+  return {
+    url: `http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${port}`,
+    port,
+  };
 }
 
 // Ensure downloads directory exists
@@ -210,9 +216,9 @@ async function startDownload(jobId, url) {
 
   const maxRetries = 10;
   let retryCount = 0;
+  let lastPort = null;
 
-  const attemptDownload = async () => {
-    const proxyUrl = getProxyUrl();
+  const attemptDownload = async (proxyUrl) => {
     const args = [
       url,
       "--proxy",
@@ -305,7 +311,11 @@ async function startDownload(jobId, url) {
       }
     }
 
-    await attemptDownload();
+    const proxyData = getProxyUrl(lastPort);
+    const proxyUrl = proxyData.url;
+    lastPort = proxyData.port;
+
+    await attemptDownload(proxyUrl);
 
     if (job.status === "completed") {
       break;
