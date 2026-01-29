@@ -133,44 +133,19 @@ const authenticate = (req, res, next) => {
 // Apply authentication to all routes
 app.use(authenticate);
 
-// Helper to update the yt-dlp binary
-async function updateBinary() {
-  console.log("Checking for yt-dlp updates...");
-  try {
-    await YTDlpWrap.downloadFromGithub(fullBinaryPath);
-    console.log("yt-dlp binary updated/downloaded successfully.");
-  } catch (err) {
-    console.error("Failed to update yt-dlp binary:", err);
-  }
-}
-
-// Helper to ensure binary exists and is reasonably fresh
+// Helper to ensure binary exists
 async function ensureBinary() {
-  const binaryExists = fs.existsSync(fullBinaryPath);
-
-  if (!binaryExists) {
+  if (!fs.existsSync(fullBinaryPath)) {
     console.log("yt-dlp binary not found. Downloading latest release...");
-    await updateBinary();
-    if (!fs.existsSync(fullBinaryPath)) {
-      console.error("Critical: Could not download yt-dlp. Exiting.");
+    try {
+      await YTDlpWrap.downloadFromGithub(fullBinaryPath);
+      console.log("yt-dlp binary downloaded successfully.");
+    } catch (err) {
+      console.error("Failed to download yt-dlp binary:", err);
       process.exit(1);
     }
   } else {
     console.log("yt-dlp binary found.");
-    // Auto-update if binary is older than 24 hours
-    try {
-      const stats = fs.statSync(fullBinaryPath);
-      const mtime = stats.mtime.getTime();
-      const now = Date.now();
-      const oneDay = 24 * 60 * 60 * 1000;
-
-      if (now - mtime > oneDay) {
-        console.log("yt-dlp binary is older than 24 hours. Updating in background...");
-        updateBinary(); // Run in background to not block startup
-      }
-    } catch (err) {
-      console.error("Error checking binary age:", err);
-    }
   }
 }
 
@@ -244,29 +219,14 @@ async function startDownload(jobId, url) {
 
   const attemptDownload = async (proxyUrl) => {
     return new Promise((resolve, reject) => {
-      const args = [];
-
-      // Check for cookies.txt in the project root or parent directory
-      // User specific file name: www.youtube.com_cookies.txt
-      const cookiesPath = path.join(__dirname, "../www.youtube.com_cookies.txt");
-      if (fs.existsSync(cookiesPath)) {
-        console.log(`Using cookies from ${cookiesPath}`);
-        args.push("--cookies", cookiesPath);
-      }
-
-      // Add arguments
-      args.push(
+      const args = [
         url,
-        "--proxy", proxyUrl,
-        "-o", outputTemplate,
+        "--proxy",
+        proxyUrl,
+        "-o",
+        outputTemplate,
         "--no-playlist",
-        "--force-ipv4",
-        "--no-cache-dir",
-        "--no-check-certificates",
-        // Quality: Best video + best audio merged
-        "--format", "bestvideo+bestaudio/best",
-        "--merge-output-format", "mp4"
-      );
+      ];
 
       console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
 
