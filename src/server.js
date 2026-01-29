@@ -230,6 +230,8 @@ async function startDownload(jobId, url) {
         "--no-playlist",
         "--ffmpeg-location",
         ffmpegPath,
+        "--plugin-dirs",
+        path.join(__dirname, "../ytdlp_plugins"),
         "-f",
         "bestvideo+bestaudio/best",
         "--merge-output-format",
@@ -325,8 +327,33 @@ async function startDownload(jobId, url) {
   }
 }
 
+// Helper to ensure PO Token Provider exists
+async function ensurePotProvider() {
+  const pluginDir = path.join(__dirname, "../ytdlp_plugins");
+  const binDir = path.join(__dirname, "../bin");
+  const binaryName = process.platform === 'win32' ? 'bgutil-ytdlp-pot-provider.exe' : 'bgutil-ytdlp-pot-provider';
+
+  if (!fs.existsSync(path.join(binDir, binaryName)) || !fs.existsSync(pluginDir)) {
+    console.log("PO Token Provider not found. Running setup script...");
+    try {
+      const { execSync } = require('child_process');
+      execSync(`node "${path.join(__dirname, '../scripts/setup-pot-provider.js')}"`, { stdio: 'inherit' });
+      console.log("PO Token Provider setup completed.");
+    } catch (err) {
+      console.error("Failed to setup PO Token Provider:", err);
+      process.exit(1);
+    }
+  } else {
+    console.log("PO Token Provider found.");
+  }
+
+  // Add bin to PATH so the plugin can find the binary
+  const delimiter = process.platform === 'win32' ? ';' : ':';
+  process.env.PATH = `${binDir}${delimiter}${process.env.PATH}`;
+}
+
 // Start server
-ensureBinary().then(() => {
+Promise.all([ensureBinary(), ensurePotProvider()]).then(() => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
