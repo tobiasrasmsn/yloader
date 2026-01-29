@@ -133,19 +133,44 @@ const authenticate = (req, res, next) => {
 // Apply authentication to all routes
 app.use(authenticate);
 
-// Helper to ensure binary exists
+// Helper to update the yt-dlp binary
+async function updateBinary() {
+  console.log("Checking for yt-dlp updates...");
+  try {
+    await YTDlpWrap.downloadFromGithub(fullBinaryPath);
+    console.log("yt-dlp binary updated/downloaded successfully.");
+  } catch (err) {
+    console.error("Failed to update yt-dlp binary:", err);
+  }
+}
+
+// Helper to ensure binary exists and is reasonably fresh
 async function ensureBinary() {
-  if (!fs.existsSync(fullBinaryPath)) {
+  const binaryExists = fs.existsSync(fullBinaryPath);
+
+  if (!binaryExists) {
     console.log("yt-dlp binary not found. Downloading latest release...");
-    try {
-      await YTDlpWrap.downloadFromGithub(fullBinaryPath);
-      console.log("yt-dlp binary downloaded successfully.");
-    } catch (err) {
-      console.error("Failed to download yt-dlp binary:", err);
+    await updateBinary();
+    if (!fs.existsSync(fullBinaryPath)) {
+      console.error("Critical: Could not download yt-dlp. Exiting.");
       process.exit(1);
     }
   } else {
     console.log("yt-dlp binary found.");
+    // Auto-update if binary is older than 24 hours
+    try {
+      const stats = fs.statSync(fullBinaryPath);
+      const mtime = stats.mtime.getTime();
+      const now = Date.now();
+      const oneDay = 24 * 60 * 60 * 1000;
+
+      if (now - mtime > oneDay) {
+        console.log("yt-dlp binary is older than 24 hours. Updating in background...");
+        updateBinary(); // Run in background to not block startup
+      }
+    } catch (err) {
+      console.error("Error checking binary age:", err);
+    }
   }
 }
 
@@ -221,11 +246,15 @@ async function startDownload(jobId, url) {
     return new Promise((resolve, reject) => {
       const args = [
         url,
-        "--proxy",
-        proxyUrl,
-        "-o",
-        outputTemplate,
+        "--proxy", proxyUrl,
+        "-o", outputTemplate,
         "--no-playlist",
+        // Bypassing YouTube 403 / SABR limits
+        "--extractor-args", "youtube:player_client=android,web;player_js_version=actual",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "--no-check-certificates",
+        "--force-ipv4",
+        "--no-cache-dir", // Prevents issues with corrupted caches
       ];
 
       console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
