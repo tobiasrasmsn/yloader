@@ -5,6 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { Upload } = require("@aws-sdk/lib-storage");
+const ffmpegPath = require("ffmpeg-static");
 require("dotenv").config(); // Load environment variables
 
 const app = express();
@@ -227,6 +228,8 @@ async function startDownload(jobId, url) {
         "-o",
         outputTemplate,
         "--no-playlist",
+        "--ffmpeg-location",
+        ffmpegPath,
         "--extractor-args",
         "youtube:player_client=android",
         "--js-runtimes",

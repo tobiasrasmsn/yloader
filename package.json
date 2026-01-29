@@ -14,6 +14,7 @@
         "@aws-sdk/lib-storage": "^3.937.0",
         "dotenv": "^17.2.3",
         "express": "^5.1.0",
+        "ffmpeg-static": "^5.3.0",
         "uuid": "^13.0.0",
         "yt-dlp-wrap": "^2.3.12"
     }
