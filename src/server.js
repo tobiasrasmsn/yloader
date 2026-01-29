@@ -244,9 +244,11 @@ async function startDownload(jobId, url) {
 
   const attemptDownload = async (proxyUrl) => {
     return new Promise((resolve, reject) => {
+      const args = [];
 
       // Check for cookies.txt in the project root or parent directory
-      const cookiesPath = path.join(__dirname, "../cookies.txt");
+      // User specific file name: www.youtube.com_cookies.txt
+      const cookiesPath = path.join(__dirname, "../www.youtube.com_cookies.txt");
       if (fs.existsSync(cookiesPath)) {
         console.log(`Using cookies from ${cookiesPath}`);
         args.push("--cookies", cookiesPath);
@@ -254,6 +256,10 @@ async function startDownload(jobId, url) {
 
       // Add common bypass args
       args.push(
+        url,
+        "--proxy", proxyUrl,
+        "-o", outputTemplate,
+        "--no-playlist",
         // 'tv' client often gets 1080p+ without strict PO Token checks
         // 'android_creator' is another robust mobile alternative
         "--extractor-args", "youtube:player_client=tv,android_creator,web_embedded;player_js_version=actual",
