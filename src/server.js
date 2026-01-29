@@ -219,6 +219,7 @@ async function startDownload(jobId, url) {
 
   const attemptDownload = async (proxyUrl) => {
     return new Promise((resolve, reject) => {
+      const cookiesPath = path.join(__dirname, "../www.youtube.com_cookies.txt");
       const args = [
         url,
         "--proxy",
@@ -226,7 +227,15 @@ async function startDownload(jobId, url) {
         "-o",
         outputTemplate,
         "--no-playlist",
+        "--extractor-args",
+        "youtube:player_client=android",
+        "--js-runtimes",
+        "node",
       ];
+
+      if (fs.existsSync(cookiesPath)) {
+        args.push("--cookies", cookiesPath);
+      }
 
       console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
 
