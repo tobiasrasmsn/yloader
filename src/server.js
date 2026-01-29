@@ -226,6 +226,10 @@ async function startDownload(jobId, url) {
         "-o",
         outputTemplate,
         "--no-playlist",
+        "-N",
+        "1",
+        "--limit-rate",
+        "10M",
       ];
 
       console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
