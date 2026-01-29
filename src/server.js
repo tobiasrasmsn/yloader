@@ -237,7 +237,7 @@ async function startDownload(jobId, url) {
         "--merge-output-format",
         "mp4",
         "--extractor-args",
-        "youtube:player_client=ios",
+        "youtube:player_client=android",
         "--js-runtimes",
         "node",
       ];
