@@ -244,22 +244,27 @@ async function startDownload(jobId, url) {
 
   const attemptDownload = async (proxyUrl) => {
     return new Promise((resolve, reject) => {
-      const args = [
-        url,
-        "--proxy", proxyUrl,
-        "-o", outputTemplate,
-        "--no-playlist",
-        // Bypassing YouTube 403 / SABR limits
-        // 'ios' often provides higher quality streams than 'android' while still bypassing 403s
-        "--extractor-args", "youtube:player_client=ios,android,web;player_js_version=actual",
-        "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+
+      // Check for cookies.txt in the project root or parent directory
+      const cookiesPath = path.join(__dirname, "../cookies.txt");
+      if (fs.existsSync(cookiesPath)) {
+        console.log(`Using cookies from ${cookiesPath}`);
+        args.push("--cookies", cookiesPath);
+      }
+
+      // Add common bypass args
+      args.push(
+        // 'tv' client often gets 1080p+ without strict PO Token checks
+        // 'android_creator' is another robust mobile alternative
+        "--extractor-args", "youtube:player_client=tv,android_creator,web_embedded;player_js_version=actual",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
         "--no-check-certificates",
         "--force-ipv4",
         "--no-cache-dir",
-        // Quality improvements configuration
-        "--format", "bestvideo+bestaudio/best",
-        "--merge-output-format", "mp4",
-      ];
+        // Quality improvements: prefer best non-DRM formats
+        "--format", "bestvideo[protocol^=http]+bestaudio[protocol^=http]/best",
+        "--merge-output-format", "mp4"
+      );
 
       console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
 
