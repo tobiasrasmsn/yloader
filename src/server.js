@@ -61,7 +61,7 @@ const ytDlpBinaryPath = path.join(__dirname, "../yt-dlp");
 // but yt-dlp-wrap handles execution.
 // However, for the download check, we should be careful.
 const binaryName = process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
-const fullBinaryPath = path.join(__dirname, "..", binaryName);
+const fullBinaryPath = "/usr/local/bin/yt-dlp";
 
 const ytDlpWrap = new YTDlpWrap(fullBinaryPath);
 
