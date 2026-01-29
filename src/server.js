@@ -5,7 +5,6 @@ const path = require("path");
 const fs = require("fs");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { Upload } = require("@aws-sdk/lib-storage");
-const ffmpegPath = require("ffmpeg-static");
 require("dotenv").config(); // Load environment variables
 
 const app = express();
@@ -220,7 +219,6 @@ async function startDownload(jobId, url) {
 
   const attemptDownload = async (proxyUrl) => {
     return new Promise((resolve, reject) => {
-      const cookiesPath = path.join(__dirname, "../www.youtube.com_cookies.txt");
       const args = [
         url,
         "--proxy",
@@ -228,19 +226,7 @@ async function startDownload(jobId, url) {
         "-o",
         outputTemplate,
         "--no-playlist",
-        "--ffmpeg-location",
-        ffmpegPath,
-        "-f",
-        "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b",
-        "--merge-output-format",
-        "mp4",
-        "--extractor-args",
-        "youtube:player_client=mweb",
       ];
-
-      if (fs.existsSync(cookiesPath)) {
-        args.push("--cookies", cookiesPath);
-      }
 
       console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
 
@@ -323,61 +309,8 @@ async function startDownload(jobId, url) {
   }
 }
 
-// Helper to ensure PO Token Provider exists
-async function ensurePotProvider() {
-  const serverDir = path.join(__dirname, '../bgutil-server/bgutil-ytdlp-pot-provider/server');
-
-  // Check if server is built
-  if (!fs.existsSync(path.join(serverDir, 'build/main.js'))) {
-    console.log("BGUtil server not found. Setting up...");
-    const { execSync } = require('child_process');
-
-    // Create directory
-    execSync(`mkdir -p ${path.join(__dirname, '../bgutil-server')}`, { stdio: 'inherit' });
-
-    // Clone and build
-    execSync(`cd ${path.join(__dirname, '../bgutil-server')} && git clone --single-branch --branch 1.2.2 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git`, { stdio: 'inherit' });
-    execSync(`cd ${serverDir} && npm install && npx tsc`, { stdio: 'inherit' });
-  }
-
-  // Check if server is already running
-  try {
-    const response = await fetch('http://127.0.0.1:4416/ping');
-    if (response.ok) {
-      console.log("BGUtil server already running");
-      return;
-    }
-  } catch (e) {
-    // Server not running, start it
-  }
-
-  // Start server in background
-  const { spawn } = require('child_process');
-  const server = spawn('node', [path.join(serverDir, 'build/main.js')], {
-    detached: true,
-    stdio: 'ignore'
-  });
-  server.unref();
-
-  console.log("BGUtil server started");
-
-  // Wait for server to be ready
-  for (let i = 0; i < 10; i++) {
-    await new Promise(r => setTimeout(r, 1000));
-    try {
-      const response = await fetch('http://127.0.0.1:4416/ping');
-      if (response.ok) {
-        console.log("BGUtil server ready");
-        return;
-      }
-    } catch (e) { }
-  }
-
-  throw new Error("BGUtil server failed to start");
-}
-
 // Start server
-Promise.all([ensureBinary(), ensurePotProvider()]).then(() => {
+ensureBinary().then(() => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
