@@ -223,6 +223,8 @@ async function startDownload(jobId, url) {
         url,
         "--proxy",
         proxyUrl,
+        "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+        "--merge-output-format", "mp4",
         "-o",
         outputTemplate,
         "--no-playlist",
