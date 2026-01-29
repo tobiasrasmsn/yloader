@@ -230,8 +230,12 @@ async function startDownload(jobId, url) {
         "--no-playlist",
         "--ffmpeg-location",
         ffmpegPath,
+        "-f",
+        "bestvideo+bestaudio/best",
+        "--merge-output-format",
+        "mp4",
         "--extractor-args",
-        "youtube:player_client=android",
+        "youtube:player_client=ios",
         "--js-runtimes",
         "node",
       ];
