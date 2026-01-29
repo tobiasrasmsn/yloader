@@ -233,11 +233,11 @@ async function startDownload(jobId, url) {
         "--plugin-dirs",
         path.join(__dirname, "../ytdlp_plugins"),
         "-f",
-        "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b",
+        "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b",
         "--merge-output-format",
         "mp4",
         "--extractor-args",
-        "youtube:player_client=ios,web_creator;po_token=web+https://www.youtube.com",
+        "youtube:player_client=mweb",  // CRITICAL: Use mweb, NOT ios
       ];
 
       if (fs.existsSync(cookiesPath)) {
