@@ -255,6 +255,9 @@ async function startDownload(jobId, url) {
         "--no-check-certificates",
         "--force-ipv4",
         "--no-cache-dir", // Prevents issues with corrupted caches
+        // Quality improvements
+        "--format", "bestvideo+bestaudio/best",
+        "--merge-output-format", "mp4",
       ];
 
       console.log(`Starting download for job ${jobId} with proxy: ${proxyUrl}`);
